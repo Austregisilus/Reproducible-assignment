@@ -1,0 +1,94 @@
+---
+title: "Course assignment"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+An assignment to understand R markdown and reproducible research.
+Libraries that will be used.
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+## Assignment
+
+The first step is to load the data set that we will be working with.
+```{r}
+activity <- read.csv("data/activity.csv")
+activity <- tibble::as_tibble(activity)
+head(activity, n = 10)
+```
+
+Histogram of the total steps in a day.
+```{r}
+by_sum <- activity %>% group_by(date) %>% summarise(sum_Steps = sum(steps), na.rm = TRUE)
+by_sum <- tibble::as_tibble(by_sum)
+
+
+
+ggplot(data = by_sum, aes(x = sum_Steps)) + geom_histogram (bins = 6, fill = "red", col = "black", alpha = .5) + labs (x = "Steps", y = "Frequency", title = "Histogram of Total steps")
+
+```
+Mean and Median for the steps taken each day.
+```{r}
+summary(by_sum)
+```
+The median is presented as 10,765 as for the mean is 10,766.
+
+Time series plot of the 5-minute interval (x-axis) and the average steps per day (y-axis).
+```{r}
+avg_interval <- activity %>% group_by(interval) %>% summarize(avg_steps = mean(steps, na.rm = TRUE))
+qplot(interval, avg_steps, data = avg_interval, geom=c("line"), xlab = "Interval", ylab = "Average steps per day", main = "Time Series plot")
+```
+Finding the number of missing values in the data set.
+```{r}
+sum(is.na(activity))
+```
+Removing the missing values from the data using the mean average steps per day.
+```{r}
+for (i in 1:nrow(activity)) {
+    
+    if(is.na(activity$steps[i])) {
+        
+        val <- avg_interval$avg_steps[which(avg_interval$interval == activity$interval[i])]
+        activity$steps[i] <- val 
+   }
+}
+
+sum(is.na(activity))
+
+```
+Histogram with the missing value replaced.
+```{r}
+by_sum <- activity %>% group_by(date) %>% summarise(sum_Steps = sum(steps))
+by_sum <- tibble::as_tibble(by_sum)
+
+
+
+ggplot(data = by_sum, aes(x = sum_Steps)) + geom_histogram (bins = 6, fill = "red", col = "black", alpha = .5) + labs (x = "Steps", y = "Frequency", title = "Histogram of Total steps")
+```
+Lets see if the mean and median have changed.
+```{r}
+summary(by_sum)
+```
+
+Lastly, we will try to see if there is a pattern between steps in the weekday and steps in the weekend.
+
+```{r}
+activity['type_of_day'] <- weekdays(as.Date(activity$date))
+
+activity$type_of_day[activity$type_of_day  %in% c('Saturday','Sunday') ] <- "weekend"
+activity$type_of_day[activity$type_of_day != "weekend"] <- "weekday"
+
+activity$type_of_day <- as.factor(activity$type_of_day)
+interval_sum <- aggregate(steps ~ interval + type_of_day, activity, mean)
+
+qplot(interval, steps, data = interval_sum, geom=c("line"), xlab = "Interval", ylab = "Number of steps", main = "") + facet_wrap(~ type_of_day, ncol = 1)
+```
